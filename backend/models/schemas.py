@@ -2,17 +2,23 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
+
 class ResearchRequest(BaseModel):
-    query: str = Field(..., description="Market research query")
+    query: str = Field(..., description="Analysis research query")
+    target_url: Optional[str] = Field(
+        None, description="Target URL to scrape and analyze"
+    )
     industry: Optional[str] = Field(None, description="Industry focus")
     timeframe: Optional[str] = Field("current", description="Time period for analysis")
     priority: Optional[str] = Field("normal", description="Task priority")
+
 
 class ResearchResponse(BaseModel):
     task_id: str
     status: str
     message: str
     estimated_completion: Optional[str] = None
+
 
 class TaskStatus(BaseModel):
     task_id: str
@@ -22,6 +28,7 @@ class TaskStatus(BaseModel):
     errors: Optional[List[str]] = None
     created_at: str
     updated_at: str
+
 
 class AnalysisResult(BaseModel):
     task_id: str
@@ -35,6 +42,7 @@ class AnalysisResult(BaseModel):
     status: str
     created_at: str
     completed_at: str
+
 
 class ComplianceCheck(BaseModel):
     source_url: str

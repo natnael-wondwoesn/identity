@@ -75,6 +75,9 @@ app.add_middleware(
 # Pydantic models
 class ResearchRequest(BaseModel):
     query: str = Field(..., description="Market research query")
+    target_url: Optional[str] = Field(
+        None, description="Target URL to scrape and analyze"
+    )
     industry: Optional[str] = Field(None, description="Industry focus")
     timeframe: Optional[str] = Field("current", description="Time period for analysis")
     priority: Optional[str] = Field("normal", description="Task priority")
@@ -168,6 +171,7 @@ async def start_research(request: ResearchRequest, background_tasks: BackgroundT
         execute_research_workflow,
         task_id,
         request.query,
+        request.target_url,
         request.industry,
         request.timeframe,
     )
@@ -299,7 +303,7 @@ async def get_workflow_info():
 
 # Background task execution
 async def execute_research_workflow(
-    task_id: str, query: str, industry: str, timeframe: str
+    task_id: str, query: str, target_url: str, industry: str, timeframe: str
 ):
     """Execute research workflow in background"""
     global workflow_instance, active_tasks
@@ -311,7 +315,9 @@ async def execute_research_workflow(
         active_tasks[task_id]["updated_at"] = datetime.now().isoformat()
 
         # Execute workflow
-        results = await workflow_instance.run_research(query, industry, timeframe)
+        results = await workflow_instance.run_research(
+            query, target_url, industry, timeframe
+        )
 
         # Update with results
         active_tasks[task_id]["status"] = results["status"]

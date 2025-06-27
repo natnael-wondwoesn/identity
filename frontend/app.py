@@ -10,8 +10,8 @@ from typing import Dict, Any, Optional
 
 # Page configuration
 st.set_page_config(
-    page_title="Identity Research and Analysis System",
-    page_icon="📊",
+    page_title="Hybrid Web Scraping & Research System",
+    page_icon="🔍",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -66,11 +66,14 @@ def check_api_health() -> bool:
         return False
 
 
-def start_research_task(query: str, industry: str, timeframe: str) -> Optional[str]:
+def start_research_task(
+    query: str, target_url: str = None, industry: str = None, timeframe: str = "current"
+) -> Optional[str]:
     """Start a new research task"""
     try:
         payload = {
             "query": query,
+            "target_url": target_url if target_url else None,
             "industry": industry if industry else None,
             "timeframe": timeframe,
         }
@@ -305,7 +308,7 @@ def main():
 
     # Header
     st.markdown(
-        '<h1 class="main-header">📊 Identity Research Analysis System</h1>',
+        '<h1 class="main-header">🔍 Hybrid Web Scraping & Research System</h1>',
         unsafe_allow_html=True,
     )
 
@@ -339,15 +342,22 @@ def main():
 
     # Main content based on navigation
     if page == "New Research":
-        st.header("🔍 Start New Identity Research")
+        st.header("🔍 Start New Hybrid Web Scraping & Research")
 
         with st.form("research_form"):
             st.subheader("Research Parameters")
 
+            # URL Input for Hybrid Scraping
+            target_url = st.text_input(
+                "Target Website URL (Optional)",
+                placeholder="e.g., https://example.com/article",
+                help="Enter a URL to scrape and analyze. If provided, the system will scrape this site and analyze it based on your query. If left empty, traditional research sources will be used.",
+            )
+
             query = st.text_area(
                 "Research Query*",
-                placeholder="e.g., Analyze the behavorial patterns of People in this Post.",
-                help="Describe what Identity research you want to conduct",
+                placeholder="e.g., Analyze the behavioral patterns of people in this post, or extract key financial data from this company page.",
+                help="Describe what analysis or research you want to conduct. If you provided a URL above, this query will guide what information is extracted from the scraped content.",
             )
 
             col1, col2 = st.columns(2)
@@ -372,14 +382,18 @@ def main():
                     ["current", "last_6_months", "last_12_months", "last_2_years"],
                 )
 
-            submitted = st.form_submit_button("🚀 Start Research", type="primary")
+            submitted = st.form_submit_button(
+                "🚀 Start Hybrid Research", type="primary"
+            )
 
             if submitted:
                 if not query.strip():
                     st.error("Please enter a research query")
                 else:
-                    with st.spinner("Starting research task..."):
-                        task_id = start_research_task(query, industry, timeframe)
+                    with st.spinner("Starting hybrid research task..."):
+                        task_id = start_research_task(
+                            query, target_url, industry, timeframe
+                        )
 
                         if task_id:
                             st.success(f"Research task started! Task ID: {task_id}")

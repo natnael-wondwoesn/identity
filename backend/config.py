@@ -13,13 +13,13 @@ class Settings(BaseSettings):
 
     # LLM Configuration - Gemini or Ollama only
     LLM_PROVIDER: str = "gemini"  # "gemini" or "ollama"
-    LLM_MODEL: str = "gemini-pro"
+    LLM_MODEL: str = "gemini-2.0-flash"
     LLM_TEMPERATURE: float = 0.1
 
     # Google Gemini Configuration
     GOOGLE_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None  # Alternative name
-    GEMINI_MODEL: str = "gemini-pro"
+    GEMINI_MODEL: str = "gemini-2.0-flash"
 
     # Ollama Configuration (local LLM)
     OLLAMA_BASE_URL: str = "http://localhost:11434"
@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     # Data Collection Limits
     MAX_SOURCES_PER_QUERY: int = 20
     MAX_DATA_POINTS_PER_SOURCE: int = 100
+
+    # Web Scraping Configuration (Crawl4AI)
+    ENABLE_WEB_SCRAPING: bool = True
+    CRAWL_HEADLESS: bool = True
+    CRAWL_TIMEOUT: int = 30
+    CRAWL_MAX_PAGES: int = 1
+    CRAWL_USER_AGENT: str = "Hybrid-Research-Bot/1.0"
 
     # Compliance Settings
     ENABLE_STRICT_COMPLIANCE: bool = True

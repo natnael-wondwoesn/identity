@@ -21,6 +21,7 @@ requests==2.31.0
 feedparser==3.0.0
 beautifulsoup4==4.12.2
 plotly==5.17.0
+crawl4ai==0.3.74
 
 # Database
 sqlalchemy==2.0.23
