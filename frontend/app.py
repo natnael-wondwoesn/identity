@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 
 # Page configuration
 st.set_page_config(
-    page_title="Market Research Analysis System",
+    page_title="Identity Research and Analysis System",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -240,7 +240,7 @@ def display_analysis_results(results: Dict[str, Any]):
 
             if analysis_results.get("sentiment"):
                 sentiment = analysis_results["sentiment"]
-                st.subheader("Market Sentiment")
+                st.subheader("Identity Sentiment")
 
                 if sentiment.get("sentiment_distribution"):
                     # Create sentiment pie chart
@@ -248,7 +248,7 @@ def display_analysis_results(results: Dict[str, Any]):
                     fig = px.pie(
                         values=list(sentiment_data.values()),
                         names=list(sentiment_data.keys()),
-                        title="Market Sentiment Distribution",
+                        title="Identity Sentiment Distribution",
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
@@ -305,7 +305,7 @@ def main():
 
     # Header
     st.markdown(
-        '<h1 class="main-header">📊 Market Research Analysis System</h1>',
+        '<h1 class="main-header">📊 Identity Research Analysis System</h1>',
         unsafe_allow_html=True,
     )
 
@@ -339,15 +339,15 @@ def main():
 
     # Main content based on navigation
     if page == "New Research":
-        st.header("🔍 Start New Market Research")
+        st.header("🔍 Start New Identity Research")
 
         with st.form("research_form"):
             st.subheader("Research Parameters")
 
             query = st.text_area(
                 "Research Query*",
-                placeholder="e.g., Analyze the electric vehicle market trends in North America",
-                help="Describe what market research you want to conduct",
+                placeholder="e.g., Analyze the behavorial patterns of People in this Post.",
+                help="Describe what Identity research you want to conduct",
             )
 
             col1, col2 = st.columns(2)
@@ -433,7 +433,7 @@ def main():
                             st.download_button(
                                 "📥 Download Report",
                                 results["final_report"],
-                                file_name=f"market_research_{task_id[:8]}.txt",
+                                file_name=f"Identity_research_{task_id[:8]}.txt",
                                 mime="text/plain",
                             )
 
