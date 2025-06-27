@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 
 # Page configuration
 st.set_page_config(
-    page_title="Hybrid Web Scraping & Research System",
+    page_title="Hybrid Web Scraping & Identity Research System",
     page_icon="🔍",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -342,7 +342,7 @@ def main():
 
     # Main content based on navigation
     if page == "New Research":
-        st.header("🔍 Start New Hybrid Web Scraping & Research")
+        st.header("🔍 Start New Hybrid Web Scraping & Identity Research")
 
         with st.form("research_form"):
             st.subheader("Research Parameters")

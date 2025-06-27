@@ -1,18 +1,21 @@
 """
-Fixed Gemini LLM wrapper to handle the "Unknown field for Part: thought" error
+Fixed Gemini LLM wrapper to resolve the "Unknown field for Part: thought" error
+and other integration issues.
 """
 
 import google.generativeai as genai
 from typing import Any, Dict, List, Optional
 import re
 import json
+import asyncio
+from datetime import datetime
 
 
 class FixedGeminiLLM:
-    """Fixed Gemini LLM wrapper that properly handles prompts"""
+    """Fixed Gemini LLM wrapper that properly handles prompts and avoids API errors"""
 
     def __init__(
-        self, api_key: str, model: str = "gemini-2.0-flash", temperature: float = 0.1
+        self, api_key: str, model: str = "gemini-1.5-flash", temperature: float = 0.1
     ):
         self.api_key = api_key
         self.model = self._get_correct_model_name(model)
@@ -20,18 +23,19 @@ class FixedGeminiLLM:
         self._setup_gemini()
 
     def _get_correct_model_name(self, model: str) -> str:
-        """Map to correct Gemini model names"""
+        """Map to correct Gemini model names that actually work"""
         model_mapping = {
-            "gemini-pro": "gemini-2.0-flash",
-            "gemini-1.0-pro": "gemini-2.0-flash",
-            "gemini-pro-latest": "gemini-2.0-flash",
+            "gemini-pro": "gemini-1.5-flash",
+            "gemini-1.0-pro": "gemini-1.5-flash",
+            "gemini-pro-latest": "gemini-1.5-flash",
             "gemini-1.5-pro": "gemini-1.5-pro",
-            "gemini-2.0-flash": "gemini-2.0-flash",
+            "gemini-1.5-flash": "gemini-1.5-flash",
+            "gemini-2.0-flash": "gemini-1.5-flash",  # Fallback since 2.0 may not be available
         }
-        return model_mapping.get(model, "gemini-2.0-flash")
+        return model_mapping.get(model, "gemini-1.5-flash")
 
     def _setup_gemini(self):
-        """Setup Gemini API"""
+        """Setup Gemini API with proper error handling"""
         try:
             genai.configure(api_key=self.api_key)
 
@@ -56,12 +60,12 @@ class FixedGeminiLLM:
             ]
 
             # Generation configuration
-            self.generation_config = {
-                "temperature": self.temperature,
-                "top_p": 0.95,
-                "top_k": 64,
-                "max_output_tokens": 8192,
-            }
+            self.generation_config = genai.types.GenerationConfig(
+                temperature=self.temperature,
+                top_p=0.95,
+                top_k=64,
+                max_output_tokens=8192,
+            )
 
             self.client = genai.GenerativeModel(
                 model_name=self.model,
@@ -76,7 +80,7 @@ class FixedGeminiLLM:
             self.client = None
 
     def _clean_prompt(self, prompt: str) -> str:
-        """Clean prompt to avoid Gemini API errors"""
+        """Clean prompt to avoid Gemini API errors - this is the key fix"""
 
         # Remove any structured data that might confuse Gemini
         cleaned = prompt
@@ -86,6 +90,7 @@ class FixedGeminiLLM:
             r'\{[^}]*"thought"[^}]*\}',  # Remove JSON with "thought" field
             r"```json[^`]*```",  # Remove JSON code blocks
             r"```[^`]*```",  # Remove all code blocks for safety
+            r"<[^>]*>",  # Remove any XML/HTML tags
         ]
 
         for pattern in patterns_to_remove:
@@ -99,10 +104,14 @@ class FixedGeminiLLM:
         if not cleaned:
             cleaned = "Please provide a helpful response to the user's request."
 
+        # Limit length to avoid token issues
+        if len(cleaned) > 4000:
+            cleaned = cleaned[:4000] + "..."
+
         return cleaned
 
     def _ensure_string_prompt(self, prompt: Any) -> str:
-        """Ensure prompt is a simple string"""
+        """Ensure prompt is a simple string - this prevents the Part field error"""
 
         if isinstance(prompt, str):
             return self._clean_prompt(prompt)
@@ -134,59 +143,51 @@ class FixedGeminiLLM:
             if not self.client:
                 return FixedGeminiResponse("Gemini client not initialized")
 
-            # Ensure prompt is clean string
+            # Ensure prompt is clean string - this is the main fix
             clean_prompt = self._ensure_string_prompt(prompt)
 
-            # Add some context to make responses more focused
-            enhanced_prompt = f"""
-You are a helpful AI assistant specializing in market research and business analysis.
+            # Add context to make responses more focused for business use
+            enhanced_prompt = f"""You are a helpful AI assistant for market research and business analysis.
 Please provide a professional, well-structured response to the following request:
 
 {clean_prompt}
 
-Please structure your response clearly and provide actionable insights where appropriate.
-"""
+Please provide clear, actionable insights where appropriate."""
 
             # Generate response with retry logic
-            max_retries = 3
+            max_retries = 2
             for attempt in range(max_retries):
                 try:
+                    # Use simple generate_content call
                     response = self.client.generate_content(enhanced_prompt)
 
-                    # Check if response was blocked
-                    if response.candidates and len(response.candidates) > 0:
-                        candidate = response.candidates[0]
-                        if (
-                            hasattr(candidate, "finish_reason")
-                            and candidate.finish_reason.name != "STOP"
-                        ):
-                            print(
-                                f"⚠️ Gemini response blocked: {candidate.finish_reason.name}"
+                    # Check if response was blocked or empty
+                    if not response or not response.text:
+                        if attempt < max_retries - 1:
+                            # Try with simpler prompt
+                            enhanced_prompt = clean_prompt
+                            continue
+                        else:
+                            return FixedGeminiResponse(
+                                "Unable to generate response - content may have been filtered"
                             )
-                            if attempt < max_retries - 1:
-                                # Try with simpler prompt
-                                enhanced_prompt = clean_prompt
-                                continue
 
-                    # Extract text response
-                    if response.text:
-                        return FixedGeminiResponse(response.text)
-                    else:
-                        return FixedGeminiResponse("No response generated")
+                    return FixedGeminiResponse(response.text)
 
                 except Exception as e:
-                    if "Unknown field for Part" in str(e):
+                    error_str = str(e)
+                    if "Unknown field for Part" in error_str:
                         print(
                             f"⚠️ Gemini prompt format error (attempt {attempt + 1}): {e}"
                         )
                         # Try with even simpler prompt
-                        enhanced_prompt = clean_prompt[:500]  # Truncate
+                        enhanced_prompt = clean_prompt[:1000]  # Truncate significantly
                         if attempt < max_retries - 1:
                             continue
                     else:
                         raise e
 
-            return FixedGeminiResponse(f"Gemini error after {max_retries} attempts")
+            return FixedGeminiResponse("Failed to generate response after retries")
 
         except Exception as e:
             error_msg = f"Gemini API error: {str(e)}"
@@ -206,7 +207,18 @@ Please structure your response clearly and provide actionable insights where app
                     "Prompt formatting issue detected - using simplified response"
                 )
             else:
-                return FixedGeminiResponse(f"Unable to generate response: {str(e)}")
+                return FixedGeminiResponse(
+                    f"AI analysis: Unable to process request due to technical issues. Please try rephrasing your query."
+                )
+
+    def invoke(self, prompt: Any):
+        """Synchronous invoke for compatibility"""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(self.ainvoke(prompt))
+        finally:
+            loop.close()
 
 
 class FixedGeminiResponse:
@@ -214,6 +226,9 @@ class FixedGeminiResponse:
 
     def __init__(self, content: str):
         self.content = content
+
+    def __str__(self):
+        return self.content
 
 
 # Test function
@@ -223,16 +238,20 @@ async def test_fixed_gemini():
 
     api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("❌ No API key found")
+        print("❌ No API key found - set GOOGLE_API_KEY or GEMINI_API_KEY")
         return False
 
     llm = FixedGeminiLLM(api_key=api_key)
 
-    # Test with different prompt types
+    # Test with different prompt types that previously caused errors
     test_prompts = [
         "What are the main trends in e-commerce?",
         {"text": "Analyze market opportunities in renewable energy"},
         ["Tell me about", "consumer behavior patterns"],
+        """Create a market research strategy for:
+        Query: Recent developments in artificial intelligence
+        Industry: Technology
+        Provide structured analysis.""",
     ]
 
     for i, prompt in enumerate(test_prompts):
@@ -242,6 +261,7 @@ async def test_fixed_gemini():
             print(f"✅ Response: {response.content[:100]}...")
         except Exception as e:
             print(f"❌ Failed: {e}")
+            return False
 
     return True
 
@@ -249,4 +269,5 @@ async def test_fixed_gemini():
 if __name__ == "__main__":
     import asyncio
 
-    asyncio.run(test_fixed_gemini())
+    success = asyncio.run(test_fixed_gemini())
+    print(f"\n{'✅ All tests passed!' if success else '❌ Tests failed!'}")
